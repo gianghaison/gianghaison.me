@@ -6,12 +6,12 @@ import Link from "next/link"
 const lines = [
   { type: "command" as const, text: "whoami" },
   { type: "output" as const, text: "" },
-  { type: "name" as const, text: "Giang Hai Son" },
-  { type: "role" as const, text: "Software Developer" },
+  { type: "name" as const, text: "Giang H\u1ea3i S\u01a1n" },
+  { type: "role" as const, text: "Designer & Indie Maker" },
   { type: "output" as const, text: "" },
   { type: "command" as const, text: "cat bio.txt" },
   { type: "output" as const, text: "" },
-  { type: "bio" as const, text: "Making useful things with code & AI" },
+  { type: "bio" as const, text: "A designer lost in the land of code \u2014 Building products with AI, zero coding background." },
 ]
 
 function TerminalCursor() {

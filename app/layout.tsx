@@ -9,8 +9,18 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "gianghaison.me",
-  description: "Making useful things with code & AI",
+  title: "Giang H\u1ea3i S\u01a1n — Designer & Indie Maker",
+  description: "A designer lost in the land of code. Building products with AI, sharing the real journey.",
+  openGraph: {
+    title: "Giang H\u1ea3i S\u01a1n — Designer & Indie Maker",
+    description: "A designer lost in the land of code. Building products with AI, sharing the real journey.",
+    siteName: "gianghaison.me",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Giang H\u1ea3i S\u01a1n — Designer & Indie Maker",
+    description: "A designer lost in the land of code. Building products with AI, sharing the real journey.",
+  },
 }
 
 export const viewport: Viewport = {

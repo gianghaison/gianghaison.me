@@ -13,8 +13,8 @@ interface SiteSettings {
 
 const defaultSettings: SiteSettings = {
   siteName: "gianghaison.me",
-  siteDescription: "Making useful things with code & AI",
-  authorName: "Giang Hai Son",
+  siteDescription: "A designer lost in the land of code. Building products with AI, sharing the real journey.",
+  authorName: "Giang H\u1ea3i S\u01a1n",
   authorEmail: "hello@gianghaison.me",
   githubUrl: "https://github.com/gianghaison",
 }

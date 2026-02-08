@@ -3,14 +3,11 @@ import { getPosts, getAllTags, Post } from "@/lib/firebase"
 import { BlogList } from "@/components/blog-list"
 
 export const metadata: Metadata = {
-  title: "blog | gianghaison.me",
-  description: "Thoughts on code, AI, and building things",
+  title: "blog | Giang H\u1ea3i S\u01a1n",
+  description: "Thoughts on design, AI, and building things as an indie maker",
 }
 
-// Make this page dynamic - don't generate at build time
-export const dynamic = 'force-dynamic'
-
-// Revalidate every 60 seconds
+// Revalidate every 60 seconds (cached between revalidations)
 export const revalidate = 60
 
 export default async function BlogPage() {
@@ -43,11 +40,22 @@ export default async function BlogPage() {
           <span className="ml-1 inline-block h-5 w-2.5 animate-cursor-blink bg-primary align-middle" />
         </h1>
         <p className="text-sm text-muted-foreground">
-          Thoughts on code, AI, and building things
+          Thoughts on design, AI, and building things
         </p>
       </header>
 
-      <BlogList posts={blogPosts} allTags={allTags} />
+      {blogPosts.length > 0 ? (
+        <BlogList posts={blogPosts} allTags={allTags} />
+      ) : (
+        <div className="border border-border p-4">
+          <div className="flex">
+            <span className="shrink-0 text-primary select-none">{"$ "}</span>
+            <span className="text-muted-foreground">
+              {"ls blog/ \u2192 (empty) \u2014 First post coming soon."}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

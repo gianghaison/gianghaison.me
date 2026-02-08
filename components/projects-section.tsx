@@ -1,26 +1,26 @@
 const projects = [
   {
-    name: "huvang.vn",
+    name: "HuVang.vn",
     description:
-      "So tai san cho nguoi Viet. Don gian den muc ai cung dung duoc.",
+      "Real-time gold prices & stock tracking for Vietnam. Simple enough for everyone.",
     status: "building" as const,
     tags: ["React", "Firebase"],
   },
   {
-    name: "FlashKid",
-    description: "Flashcard hoc tieng Anh cho tre em Viet Nam",
+    name: "FlashBee.app",
+    description: "English flashcards for Vietnamese kids. Fun, easy, effective.",
     status: "building" as const,
     tags: ["React"],
   },
   {
     name: "VocabVault",
-    description: "API cung cap hinh minh hoa tu vung",
+    description: "Vocabulary illustration API for developers.",
     status: "building" as const,
     tags: ["Node.js", "Cloudflare R2"],
   },
   {
     name: "SCOUT v4",
-    description: "AI-powered opportunity analysis cho indie makers",
+    description: "AI-powered opportunity analysis for indie makers.",
     status: "live" as const,
     tags: ["Next.js", "Claude API"],
   },

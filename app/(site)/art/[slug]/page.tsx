@@ -7,10 +7,7 @@ interface ArtDetailPageProps {
   params: Promise<{ slug: string }>
 }
 
-// Make this page dynamic - don't generate at build time
-export const dynamic = 'force-dynamic'
-
-// Revalidate every 60 seconds
+// Revalidate every 60 seconds (cached between revalidations)
 export const revalidate = 60
 
 export async function generateMetadata({
