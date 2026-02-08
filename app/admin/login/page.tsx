@@ -39,15 +39,17 @@ function LoginForm() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to create session')
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.detail || 'Failed to create session')
       }
 
       // Redirect to admin dashboard or original destination
       router.push(redirect)
       router.refresh()
-    } catch (err) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
       console.error('Login error:', err)
-      setError('Invalid email or password')
+      setError(msg)
     } finally {
       setLoading(false)
     }

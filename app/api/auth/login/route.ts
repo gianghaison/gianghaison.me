@@ -15,10 +15,6 @@ export async function POST(request: NextRequest) {
     const expiresIn = 60 * 60 * 24 * 5 * 1000 // 5 days in milliseconds
     const sessionCookie = await createSessionCookie(idToken, expiresIn)
 
-    if (!sessionCookie) {
-      return NextResponse.json({ error: 'Failed to create session' }, { status: 401 })
-    }
-
     // Set cookie in response
     const response = NextResponse.json({ message: 'Logged in successfully' })
 
@@ -31,10 +27,11 @@ export async function POST(request: NextRequest) {
     })
 
     return response
-  } catch (error) {
-    console.error('Error during login:', error)
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Login error:', message, error)
     return NextResponse.json(
-      { error: 'Failed to login' },
+      { error: 'Failed to create session', detail: message },
       { status: 500 }
     )
   }

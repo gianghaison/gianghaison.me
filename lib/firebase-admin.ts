@@ -98,12 +98,6 @@ export async function verifySessionCookie(sessionCookie: string) {
 // Create Session Cookie
 // ===========================================
 export async function createSessionCookie(idToken: string, expiresIn: number = 60 * 60 * 24 * 5 * 1000) {
-  try {
-    const auth = getAdminAuth()
-    const sessionCookie = await auth.createSessionCookie(idToken, { expiresIn })
-    return sessionCookie
-  } catch (error) {
-    console.error('Error creating session cookie:', error)
-    return null
-  }
+  const auth = getAdminAuth()
+  return await auth.createSessionCookie(idToken, { expiresIn })
 }
