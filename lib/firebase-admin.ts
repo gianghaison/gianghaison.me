@@ -36,11 +36,16 @@ function getAdminApp(): App {
           throw new Error('Firebase Admin SDK: Missing required environment variables (FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_CLIENT_EMAIL, FIREBASE_ADMIN_PRIVATE_KEY)')
         }
 
+        // Parse private key: strip surrounding quotes, then convert literal \n to newlines
+        const parsedKey = privateKey
+          .replace(/^"(.*)"$/, '$1')
+          .replace(/\\n/g, '\n')
+
         adminApp = initializeApp({
           credential: cert({
             projectId,
             clientEmail,
-            privateKey: privateKey.replace(/\\n/g, '\n'),
+            privateKey: parsedKey,
           }),
           projectId,
         })
