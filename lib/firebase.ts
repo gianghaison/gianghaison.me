@@ -70,16 +70,26 @@ export function getFirebaseAuth(): Auth {
 // ===========================================
 // Types
 // ===========================================
+export type PostStatus = 'draft' | 'published' | 'scheduled'
+export type PostLang = 'en' | 'vi'
+
 export interface Post {
   id?: string
   title: string
   slug: string
   content: string
-  description: string
+  excerpt: string
   tags: string[]
-  published: boolean
+  status: PostStatus
+  author: string
+  lang: PostLang
+  publishedAt?: Date | Timestamp
+  scheduledAt?: Date | Timestamp
   createdAt: Date | Timestamp
   updatedAt: Date | Timestamp
+  // Legacy fields (backward compat reads from Firestore)
+  published?: boolean
+  description?: string
 }
 
 export interface Art {
@@ -128,12 +138,43 @@ function convertTimestamps<T extends DocumentData>(data: T): T {
   return result
 }
 
+function normalizePost(raw: Post): Post {
+  const post = { ...raw }
+
+  // Backward compat: map old "description" → "excerpt"
+  if (!post.excerpt && post.description) {
+    post.excerpt = post.description
+  }
+  if (!post.excerpt) post.excerpt = ''
+
+  // Backward compat: map old "published: boolean" → "status"
+  if (!post.status) {
+    if (typeof post.published === 'boolean') {
+      post.status = post.published ? 'published' : 'draft'
+    } else {
+      post.status = 'draft'
+    }
+  }
+
+  // Default new fields
+  if (!post.author) post.author = 'Giang H\u1ea3i S\u01a1n'
+  if (!post.lang) post.lang = 'vi'
+
+  // If published but no publishedAt, use createdAt as fallback
+  if (post.status === 'published' && !post.publishedAt) {
+    post.publishedAt = post.createdAt
+  }
+
+  return post
+}
+
 function docToPost(doc: QueryDocumentSnapshot<DocumentData>): Post {
   const data = doc.data()
-  return {
+  const raw = {
     id: doc.id,
     ...convertTimestamps(data),
   } as Post
+  return normalizePost(raw)
 }
 
 function docToArt(doc: QueryDocumentSnapshot<DocumentData>): Art {
@@ -151,13 +192,26 @@ export async function getPosts(publishedOnly = true): Promise<Post[]> {
   const db = getFirestoreDb()
   const postsRef = collection(db, 'posts')
 
-  let q = query(postsRef, orderBy('createdAt', 'desc'))
+  // Fetch all posts and filter in JS (simple, handles backward compat + scheduled)
+  const q = query(postsRef, orderBy('createdAt', 'desc'))
+  const snapshot = await getDocs(q)
+  let posts = snapshot.docs.map(docToPost)
+
   if (publishedOnly) {
-    q = query(postsRef, where('published', '==', true), orderBy('createdAt', 'desc'))
+    const now = new Date()
+    posts = posts.filter(p => {
+      if (p.status === 'published') return true
+      if (p.status === 'scheduled' && p.scheduledAt) {
+        const scheduledDate = p.scheduledAt instanceof Date
+          ? p.scheduledAt
+          : new Date((p.scheduledAt as Timestamp).seconds * 1000)
+        return scheduledDate <= now
+      }
+      return false
+    })
   }
 
-  const snapshot = await getDocs(q)
-  return snapshot.docs.map(docToPost)
+  return posts
 }
 
 export async function getPostBySlug(slug: string): Promise<Post | null> {
@@ -178,18 +232,21 @@ export async function getPostById(id: string): Promise<Post | null> {
 
   if (!docSnap.exists()) return null
 
-  return {
+  const raw = {
     id: docSnap.id,
     ...convertTimestamps(docSnap.data()),
   } as Post
+  return normalizePost(raw)
 }
 
-export async function createPost(post: Omit<Post, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+export async function createPost(post: Omit<Post, 'id' | 'createdAt' | 'updatedAt' | 'published' | 'description'>): Promise<string> {
   const db = getFirestoreDb()
   const now = Timestamp.now()
 
   const docRef = await addDoc(collection(db, 'posts'), {
     ...post,
+    publishedAt: post.status === 'published' ? now : (post.publishedAt || null),
+    scheduledAt: post.scheduledAt || null,
     createdAt: now,
     updatedAt: now,
   })
@@ -201,10 +258,21 @@ export async function updatePost(id: string, post: Partial<Post>): Promise<void>
   const db = getFirestoreDb()
   const docRef = doc(db, 'posts', id)
 
-  await updateDoc(docRef, {
-    ...post,
-    updatedAt: Timestamp.now(),
-  })
+  const updateData: Record<string, unknown> = { ...post }
+
+  // Auto-set publishedAt when transitioning to "published"
+  if (post.status === 'published' && !post.publishedAt) {
+    updateData.publishedAt = Timestamp.now()
+  }
+
+  // Clear scheduledAt when status is not "scheduled"
+  if (post.status && post.status !== 'scheduled') {
+    updateData.scheduledAt = null
+  }
+
+  updateData.updatedAt = Timestamp.now()
+
+  await updateDoc(docRef, updateData)
 }
 
 export async function deletePost(id: string): Promise<void> {

@@ -6,15 +6,20 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { MarkdownRenderer } from "@/components/markdown-renderer"
 
+type PostStatus = "draft" | "published" | "scheduled"
+
 interface PostEditorProps {
   initialData?: {
     id?: string
     title: string
     slug: string
-    description: string
+    excerpt: string
     tags: string[]
     content: string
-    status: "published" | "draft"
+    status: PostStatus
+    author?: string
+    lang?: string
+    scheduledAt?: string
   }
   isNew?: boolean
 }
@@ -32,16 +37,19 @@ export function PostEditor({ initialData, isNew }: PostEditorProps) {
   const router = useRouter()
   const [title, setTitle] = useState(initialData?.title ?? "")
   const [slug, setSlug] = useState(initialData?.slug ?? "")
-  const [description, setDescription] = useState(
-    initialData?.description ?? ""
-  )
+  const [excerpt, setExcerpt] = useState(initialData?.excerpt ?? "")
   const [tagsInput, setTagsInput] = useState(
     initialData?.tags.join(", ") ?? ""
   )
   const [content, setContent] = useState(initialData?.content ?? "")
-  const [status, setStatus] = useState<"published" | "draft">(
+  const [status, setStatus] = useState<PostStatus>(
     initialData?.status ?? "draft"
   )
+  const [author, setAuthor] = useState(initialData?.author ?? "Giang H\u1ea3i S\u01a1n")
+  const [lang, setLang] = useState<"en" | "vi">(
+    (initialData?.lang as "en" | "vi") ?? "vi"
+  )
+  const [scheduledAt, setScheduledAt] = useState(initialData?.scheduledAt ?? "")
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
@@ -70,10 +78,13 @@ export function PostEditor({ initialData, isNew }: PostEditorProps) {
     const postData = {
       title,
       slug,
-      description,
+      excerpt,
       tags,
       content,
-      published: status === "published",
+      status,
+      author,
+      lang,
+      scheduledAt: status === "scheduled" ? scheduledAt : null,
     }
 
     try {
@@ -113,7 +124,7 @@ export function PostEditor({ initialData, isNew }: PostEditorProps) {
     } finally {
       setSaving(false)
     }
-  }, [title, slug, description, tagsInput, content, status, isNew, initialData, router])
+  }, [title, slug, excerpt, tagsInput, content, status, author, lang, scheduledAt, isNew, initialData, router])
 
   const handleDelete = useCallback(async () => {
     if (!initialData?.id) return
@@ -226,20 +237,50 @@ export function PostEditor({ initialData, isNew }: PostEditorProps) {
               </div>
             )}
 
-            {/* Status toggle */}
-            <button
-              type="button"
-              onClick={() =>
-                setStatus((s) => (s === "draft" ? "published" : "draft"))
-              }
-              className={`ml-auto px-2 py-0.5 text-[10px] ${
-                status === "published"
-                  ? "border border-primary/30 bg-primary/10 text-primary"
-                  : "border border-yellow-500/30 bg-yellow-500/10 text-yellow-500"
-              }`}
-            >
-              {status}
-            </button>
+            {/* Language selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground">lang:</span>
+              <select
+                value={lang}
+                onChange={(e) => setLang(e.target.value as "en" | "vi")}
+                className="border-b border-border bg-transparent py-0.5 text-xs text-foreground focus:outline-none cursor-pointer"
+              >
+                <option value="vi">vi</option>
+                <option value="en">en</option>
+              </select>
+            </div>
+
+            {/* Status selector */}
+            <div className="ml-auto flex items-center gap-3">
+              {/* Scheduled date picker */}
+              {status === "scheduled" && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground">publish at:</span>
+                  <input
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    className="border-b border-border bg-transparent py-0.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                  />
+                </div>
+              )}
+
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as PostStatus)}
+                className={`px-2 py-0.5 text-[10px] bg-transparent border cursor-pointer focus:outline-none ${
+                  status === "published"
+                    ? "border-primary/30 bg-primary/10 text-primary"
+                    : status === "scheduled"
+                    ? "border-purple-500/30 bg-purple-500/10 text-purple-500"
+                    : "border-yellow-500/30 bg-yellow-500/10 text-yellow-500"
+                }`}
+              >
+                <option value="draft">draft</option>
+                <option value="published">published</option>
+                <option value="scheduled">scheduled</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -302,14 +343,23 @@ export function PostEditor({ initialData, isNew }: PostEditorProps) {
               className="w-60 border-b border-border bg-transparent py-0.5 text-xs text-foreground focus:border-primary focus:outline-none"
             />
           </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground">author:</span>
+            <input
+              type="text"
+              value={author}
+              onChange={(e) => setAuthor(e.target.value)}
+              className="w-40 border-b border-border bg-transparent py-0.5 text-xs text-foreground focus:border-primary focus:outline-none"
+            />
+          </div>
           <div className="flex flex-1 items-center gap-2">
             <span className="text-[10px] text-muted-foreground">
               excerpt:
             </span>
             <input
               type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={excerpt}
+              onChange={(e) => setExcerpt(e.target.value)}
               placeholder="Short description..."
               className="flex-1 border-b border-border bg-transparent py-0.5 text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none"
             />

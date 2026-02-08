@@ -20,17 +20,23 @@ export default async function BlogPage() {
   const allTags = getAllTags(posts)
 
   // Convert Firestore posts to BlogPost format for the component
-  const blogPosts = posts.map((post: Post) => ({
-    slug: post.slug,
-    title: post.title,
-    description: post.description,
-    date: post.createdAt instanceof Date
-      ? post.createdAt.toISOString().split('T')[0]
-      : new Date(post.createdAt.seconds * 1000).toISOString().split('T')[0],
-    readingTime: Math.ceil(post.content.split(/\s+/).length / 200), // Estimate reading time
-    tags: post.tags,
-    content: post.content,
-  }))
+  const blogPosts = posts.map((post: Post) => {
+    // Use publishedAt for display date, fallback to createdAt
+    const displayDate = post.publishedAt || post.createdAt
+    const date = displayDate instanceof Date
+      ? displayDate.toISOString().split('T')[0]
+      : new Date((displayDate as { seconds: number }).seconds * 1000).toISOString().split('T')[0]
+
+    return {
+      slug: post.slug,
+      title: post.title,
+      description: post.excerpt || post.description || '',
+      date,
+      readingTime: Math.ceil(post.content.split(/\s+/).length / 200),
+      tags: post.tags,
+      content: post.content,
+    }
+  })
 
   return (
     <div className="space-y-8">

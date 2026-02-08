@@ -10,7 +10,8 @@ interface PostRow {
   slug: string
   title: string
   date: string
-  status: "published" | "draft"
+  status: "published" | "draft" | "scheduled"
+  scheduledAt?: string
 }
 
 export default function AdminPostsPage() {
@@ -31,21 +32,42 @@ export default function AdminPostsPage() {
       const data = await response.json()
 
       if (data.posts) {
-        const postRows: PostRow[] = data.posts.map((p: {
-          id: string
-          slug: string
-          title: string
-          published: boolean
-          createdAt: Date | { seconds: number }
-        }) => ({
-          id: p.id,
-          slug: p.slug,
-          title: p.title,
-          date: p.createdAt instanceof Date
-            ? p.createdAt.toISOString().split('T')[0]
-            : new Date(p.createdAt.seconds * 1000).toISOString().split('T')[0],
-          status: p.published ? "published" : "draft",
-        }))
+        const postRows: PostRow[] = data.posts.map((p: Record<string, unknown>) => {
+          const createdAt = p.createdAt as Date | { seconds: number }
+          const date = createdAt instanceof Date
+            ? createdAt.toISOString().split('T')[0]
+            : typeof createdAt === 'object' && createdAt && 'seconds' in createdAt
+            ? new Date(createdAt.seconds * 1000).toISOString().split('T')[0]
+            : ''
+
+          // Determine status (backward compat)
+          let status: PostRow['status'] = 'draft'
+          if (p.status) {
+            status = p.status as PostRow['status']
+          } else if (typeof p.published === 'boolean') {
+            status = p.published ? 'published' : 'draft'
+          }
+
+          // Parse scheduledAt
+          let scheduledAt: string | undefined
+          if (p.scheduledAt) {
+            const sa = p.scheduledAt as Date | { seconds: number }
+            scheduledAt = sa instanceof Date
+              ? sa.toISOString().split('T')[0]
+              : typeof sa === 'object' && sa && 'seconds' in sa
+              ? new Date(sa.seconds * 1000).toISOString().split('T')[0]
+              : undefined
+          }
+
+          return {
+            id: p.id as string,
+            slug: p.slug as string,
+            title: p.title as string,
+            date,
+            status,
+            scheduledAt,
+          }
+        })
         setPosts(postRows)
       }
     } catch (error) {
@@ -147,11 +169,18 @@ export default function AdminPostsPage() {
                   className={`inline-block px-2 py-0.5 text-[10px] ${
                     post.status === "published"
                       ? "border border-primary/30 bg-primary/10 text-primary"
+                      : post.status === "scheduled"
+                      ? "border border-purple-500/30 bg-purple-500/10 text-purple-500"
                       : "border border-yellow-500/30 bg-yellow-500/10 text-yellow-500"
                   }`}
                 >
                   {post.status}
                 </span>
+                {post.status === "scheduled" && post.scheduledAt && (
+                  <span className="block text-[9px] text-muted-foreground mt-0.5">
+                    {post.scheduledAt}
+                  </span>
+                )}
               </span>
               <span className="text-xs text-muted-foreground">{post.date}</span>
               <div className="flex items-center justify-end gap-2">

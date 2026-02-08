@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, slug, content, description, tags, published } = body
+    const { title, slug, content, excerpt, description, tags, status, scheduledAt, author, lang } = body
 
     // Validate required fields
     if (!title || !slug || !content) {
@@ -48,13 +48,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const post: Omit<Post, 'id' | 'createdAt' | 'updatedAt'> = {
+    // Validate status
+    const validStatuses = ['draft', 'published', 'scheduled']
+    const postStatus = validStatuses.includes(status) ? status : 'draft'
+
+    // scheduledAt is required when status is "scheduled"
+    if (postStatus === 'scheduled' && !scheduledAt) {
+      return NextResponse.json(
+        { error: 'scheduledAt is required when status is "scheduled"' },
+        { status: 400 }
+      )
+    }
+
+    const post = {
       title,
       slug,
       content,
-      description: description || '',
+      excerpt: excerpt || description || '',
       tags: tags || [],
-      published: published ?? false,
+      status: postStatus as Post['status'],
+      author: author || 'Giang H\u1ea3i S\u01a1n',
+      lang: (lang === 'en' ? 'en' : 'vi') as Post['lang'],
+      scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
     }
 
     const id = await createPost(post)

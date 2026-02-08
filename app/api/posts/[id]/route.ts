@@ -57,9 +57,20 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (body.title !== undefined) updateData.title = body.title
     if (body.slug !== undefined) updateData.slug = body.slug
     if (body.content !== undefined) updateData.content = body.content
-    if (body.description !== undefined) updateData.description = body.description
+    if (body.excerpt !== undefined) updateData.excerpt = body.excerpt
+    else if (body.description !== undefined) updateData.excerpt = body.description
     if (body.tags !== undefined) updateData.tags = body.tags
-    if (body.published !== undefined) updateData.published = body.published
+    if (body.status !== undefined) updateData.status = body.status
+    if (body.scheduledAt !== undefined) {
+      updateData.scheduledAt = body.scheduledAt ? new Date(body.scheduledAt) : null
+    }
+    if (body.author !== undefined) updateData.author = body.author
+    if (body.lang !== undefined) updateData.lang = body.lang
+
+    // Backward compat: if client sends "published" boolean without "status"
+    if (body.published !== undefined && body.status === undefined) {
+      updateData.status = body.published ? 'published' : 'draft'
+    }
 
     await updatePost(id, updateData)
 

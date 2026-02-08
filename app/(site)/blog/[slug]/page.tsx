@@ -30,17 +30,17 @@ export async function generateMetadata({
 
   return {
     title: `${post.title} | gianghaison.me`,
-    description: post.description,
+    description: post.excerpt || post.description || '',
     openGraph: {
       title: post.title,
-      description: post.description,
+      description: post.excerpt || post.description || '',
       type: "article",
       url: `https://gianghaison.me/blog/${post.slug}`,
     },
     twitter: {
       card: "summary_large_image",
       title: post.title,
-      description: post.description,
+      description: post.excerpt || post.description || '',
     },
   }
 }
@@ -64,14 +64,24 @@ export default async function BlogPostPage({
   const { slug } = await params
   const post = await getPostBySlug(slug)
 
-  if (!post || !post.published) {
+  // Check visibility: published OR (scheduled and due)
+  const isVisible = post && (
+    post.status === 'published' ||
+    (post.status === 'scheduled' && post.scheduledAt &&
+      (post.scheduledAt instanceof Date ? post.scheduledAt : new Date((post.scheduledAt as { seconds: number }).seconds * 1000)) <= new Date()
+    ) ||
+    // Backward compat: old posts with published boolean
+    (!post.status && post.published === true)
+  )
+
+  if (!post || !isVisible) {
     notFound()
   }
 
   const allPosts = await getPosts(true)
   const { previous, next } = getAdjacentPosts(allPosts, slug)
 
-  const date = formatDate(post.createdAt)
+  const date = formatDate(post.publishedAt || post.createdAt)
   const readingTime = calculateReadingTime(post.content)
 
   return (

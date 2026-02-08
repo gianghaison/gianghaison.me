@@ -10,10 +10,15 @@ interface Post {
   id: string
   title: string
   slug: string
-  description: string
+  excerpt?: string
+  description?: string
   tags: string[]
   content: string
-  published: boolean
+  status?: string
+  published?: boolean
+  author?: string
+  lang?: string
+  scheduledAt?: string | { seconds: number }
 }
 
 export default function EditPostPage() {
@@ -59,16 +64,31 @@ export default function EditPostPage() {
     notFound()
   }
 
+  // Parse scheduledAt for datetime-local input
+  let scheduledAtStr = ""
+  if (post.scheduledAt) {
+    const date = typeof post.scheduledAt === "object" && "seconds" in post.scheduledAt
+      ? new Date(post.scheduledAt.seconds * 1000)
+      : new Date(post.scheduledAt as string)
+    if (!isNaN(date.getTime())) {
+      scheduledAtStr = date.toISOString().slice(0, 16)
+    }
+  }
+
   return (
     <PostEditor
       initialData={{
         id: post.id,
         title: post.title,
         slug: post.slug,
-        description: post.description,
+        excerpt: post.excerpt || post.description || "",
         tags: post.tags,
         content: post.content,
-        status: post.published ? "published" : "draft",
+        status: (post.status as "draft" | "published" | "scheduled")
+          || (post.published ? "published" : "draft"),
+        author: post.author || "Giang H\u1ea3i S\u01a1n",
+        lang: post.lang || "vi",
+        scheduledAt: scheduledAtStr,
       }}
     />
   )
