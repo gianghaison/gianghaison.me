@@ -1,6 +1,7 @@
 import React from "react"
 import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
+import { PageViewTracker } from "@/components/page-view-tracker"
 
 export default function SiteLayout({
   children,
@@ -9,6 +10,7 @@ export default function SiteLayout({
 }) {
   return (
     <>
+      <PageViewTracker />
       <Navigation />
       <main className="mx-auto min-h-screen max-w-3xl px-6 pt-24 pb-16">
         {children}

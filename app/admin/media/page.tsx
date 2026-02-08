@@ -1,88 +1,141 @@
 "use client"
 
-import { useState, useRef } from "react"
-import { Upload, Copy, Trash2, Check, X, ImageIcon } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { Upload, Copy, Trash2, Check, X, ImageIcon, Loader2 } from "lucide-react"
 
 interface MediaItem {
-  id: string
-  name: string
+  key: string
   url: string
-  size: string
-  date: string
-  thumbnail: string
+  size: number
+  lastModified: Date | string
 }
 
-const mockMedia: MediaItem[] = [
-  {
-    id: "1",
-    name: "ho-xuan-huong.jpg",
-    url: "/art/ho-xuan-huong.jpg",
-    size: "2.4 MB",
-    date: "2026-02-01",
-    thumbnail: "/art/ho-xuan-huong.jpg",
-  },
-  {
-    id: "2",
-    name: "saigon-rain.jpg",
-    url: "/art/saigon-rain.jpg",
-    size: "3.1 MB",
-    date: "2026-01-18",
-    thumbnail: "/art/saigon-rain.jpg",
-  },
-  {
-    id: "3",
-    name: "old-quarter-sketch.jpg",
-    url: "/art/old-quarter-sketch.jpg",
-    size: "1.8 MB",
-    date: "2026-01-10",
-    thumbnail: "/art/old-quarter-sketch.jpg",
-  },
-  {
-    id: "4",
-    name: "mekong-delta.jpg",
-    url: "/art/mekong-delta.jpg",
-    size: "2.7 MB",
-    date: "2025-12-20",
-    thumbnail: "/art/mekong-delta.jpg",
-  },
-  {
-    id: "5",
-    name: "street-food-dusk.jpg",
-    url: "/art/street-food-dusk.jpg",
-    size: "2.9 MB",
-    date: "2025-12-05",
-    thumbnail: "/art/street-food-dusk.jpg",
-  },
-  {
-    id: "6",
-    name: "morning-coffee.jpg",
-    url: "/art/morning-coffee.jpg",
-    size: "1.2 MB",
-    date: "2025-11-15",
-    thumbnail: "/art/morning-coffee.jpg",
-  },
-]
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function formatDate(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  return d.toISOString().split('T')[0]
+}
 
 export default function AdminMediaPage() {
-  const [media] = useState<MediaItem[]>(mockMedia)
-  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [media, setMedia] = useState<MediaItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [previewItem, setPreviewItem] = useState<MediaItem | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<MediaItem | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [folder, setFolder] = useState<"blog" | "art">("blog")
   const fileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    fetchMedia()
+  }, [folder])
+
+  async function fetchMedia() {
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/upload?folder=${folder}`)
+      const data = await response.json()
+
+      if (data.files) {
+        setMedia(data.files)
+      }
+    } catch (err) {
+      console.error("Error fetching media:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleUpload(files: FileList | null) {
+    if (!files || files.length === 0) return
+
+    setUploading(true)
+
+    try {
+      for (const file of Array.from(files)) {
+        const formData = new FormData()
+        formData.append("file", file)
+        formData.append("folder", folder)
+
+        const response = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        })
+
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.error || "Upload failed")
+        }
+      }
+
+      fetchMedia()
+    } catch (err) {
+      console.error("Upload error:", err)
+      alert(err instanceof Error ? err.message : "Upload failed")
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return
+
+    setDeleting(true)
+    try {
+      const response = await fetch(`/api/upload?key=${encodeURIComponent(deleteTarget.key)}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete file")
+      }
+
+      setMedia(media.filter((m) => m.key !== deleteTarget.key))
+      setDeleteTarget(null)
+    } catch (err) {
+      console.error("Delete error:", err)
+      alert("Failed to delete file")
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const copyUrl = (item: MediaItem) => {
     navigator.clipboard.writeText(item.url)
-    setCopiedId(item.id)
-    setTimeout(() => setCopiedId(null), 1500)
+    setCopiedKey(item.key)
+    setTimeout(() => setCopiedKey(null), 1500)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    handleUpload(e.dataTransfer.files)
   }
 
   return (
     <div className="space-y-6 p-6 pt-16 md:p-8 md:pt-8">
       <div className="flex items-center justify-between">
         <h1 className="text-lg text-foreground">Media</h1>
-        <span className="text-xs text-muted-foreground">
-          {media.length} files
-        </span>
+        <div className="flex items-center gap-4">
+          <select
+            value={folder}
+            onChange={(e) => setFolder(e.target.value as "blog" | "art")}
+            className="border border-border bg-card px-3 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none"
+          >
+            <option value="blog">Blog</option>
+            <option value="art">Art</option>
+          </select>
+          <span className="text-xs text-muted-foreground">
+            {media.length} files
+          </span>
+        </div>
       </div>
 
       {/* Upload zone */}
@@ -92,29 +145,30 @@ export default function AdminMediaPage() {
           setIsDragging(true)
         }}
         onDragLeave={() => setIsDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault()
-          setIsDragging(false)
-        }}
-        onClick={() => fileRef.current?.click()}
-        onKeyDown={(e) => e.key === "Enter" && fileRef.current?.click()}
+        onDrop={handleDrop}
+        onClick={() => !uploading && fileRef.current?.click()}
+        onKeyDown={(e) => e.key === "Enter" && !uploading && fileRef.current?.click()}
         role="button"
         tabIndex={0}
         className={`flex cursor-pointer flex-col items-center justify-center gap-3 border border-dashed py-10 transition-colors ${
           isDragging
             ? "border-primary bg-primary/5"
             : "border-border hover:border-muted-foreground"
-        }`}
+        } ${uploading ? "opacity-50 cursor-not-allowed" : ""}`}
       >
-        <Upload
-          className={`h-6 w-6 ${isDragging ? "text-primary" : "text-muted-foreground"}`}
-        />
+        {uploading ? (
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        ) : (
+          <Upload
+            className={`h-6 w-6 ${isDragging ? "text-primary" : "text-muted-foreground"}`}
+          />
+        )}
         <div className="text-center">
           <p className="text-xs text-foreground">
-            Drop images here or click to upload
+            {uploading ? "Uploading..." : "Drop images here or click to upload"}
           </p>
           <p className="mt-1 text-[10px] text-muted-foreground">
-            JPG, PNG, WebP up to 10MB
+            JPG, PNG, WebP up to 10MB • Auto-converted to WebP
           </p>
         </div>
         <input
@@ -122,72 +176,85 @@ export default function AdminMediaPage() {
           type="file"
           accept="image/*"
           multiple
+          onChange={(e) => handleUpload(e.target.files)}
           className="hidden"
           aria-label="Upload images"
+          disabled={uploading}
         />
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-        {media.map((item) => (
-          <div
-            key={item.id}
-            className="group border border-border bg-card transition-colors hover:border-primary/50"
-          >
-            {/* Thumbnail */}
-            <button
-              type="button"
-              onClick={() => setPreviewItem(item)}
-              className="relative aspect-square w-full overflow-hidden"
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : media.length === 0 ? (
+        <div className="py-12 text-center text-xs text-muted-foreground">
+          No files in {folder} folder
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+          {media.map((item) => (
+            <div
+              key={item.key}
+              className="group border border-border bg-card transition-colors hover:border-primary/50"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={item.thumbnail || "/placeholder.svg"}
-                alt={item.name}
-                className="h-full w-full object-cover transition-transform group-hover:scale-105"
-              />
-              <div className="absolute inset-0 flex items-center justify-center bg-background/60 opacity-0 transition-opacity group-hover:opacity-100">
-                <ImageIcon className="h-5 w-5 text-foreground" />
-              </div>
-            </button>
-            {/* Meta */}
-            <div className="border-t border-border p-3">
-              <p className="truncate text-[10px] text-foreground">
-                {item.name}
-              </p>
-              <div className="mt-1 flex items-center justify-between">
-                <span className="text-[10px] text-muted-foreground">
-                  {item.size}
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => copyUrl(item)}
-                    className="p-0.5 text-muted-foreground transition-colors hover:text-primary"
-                    aria-label={`Copy URL for ${item.name}`}
-                  >
-                    {copiedId === item.id ? (
-                      <Check className="h-3 w-3 text-primary" />
-                    ) : (
-                      <Copy className="h-3 w-3" />
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    className="p-0.5 text-muted-foreground transition-colors hover:text-destructive"
-                    aria-label={`Delete ${item.name}`}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
+              {/* Thumbnail */}
+              <button
+                type="button"
+                onClick={() => setPreviewItem(item)}
+                className="relative aspect-square w-full overflow-hidden"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={item.url}
+                  alt={item.key.split('/').pop() || 'Image'}
+                  className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-background/60 opacity-0 transition-opacity group-hover:opacity-100">
+                  <ImageIcon className="h-5 w-5 text-foreground" />
                 </div>
+              </button>
+              {/* Meta */}
+              <div className="border-t border-border p-3">
+                <p className="truncate text-[10px] text-foreground">
+                  {item.key.split('/').pop()}
+                </p>
+                <div className="mt-1 flex items-center justify-between">
+                  <span className="text-[10px] text-muted-foreground">
+                    {formatFileSize(item.size)}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => copyUrl(item)}
+                      className="p-0.5 text-muted-foreground transition-colors hover:text-primary"
+                      aria-label={`Copy URL for ${item.key}`}
+                    >
+                      {copiedKey === item.key ? (
+                        <Check className="h-3 w-3 text-primary" />
+                      ) : (
+                        <Copy className="h-3 w-3" />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTarget(item)}
+                      className="p-0.5 text-muted-foreground transition-colors hover:text-destructive"
+                      aria-label={`Delete ${item.key}`}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+                <p className="mt-1 text-[10px] text-muted-foreground/60">
+                  {formatDate(item.lastModified)}
+                </p>
               </div>
-              <p className="mt-1 text-[10px] text-muted-foreground/60">
-                {item.date}
-              </p>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Preview modal */}
       {previewItem && (
@@ -203,15 +270,15 @@ export default function AdminMediaPage() {
           <div className="max-h-[80vh] max-w-3xl px-6">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={previewItem.thumbnail || "/placeholder.svg"}
-              alt={previewItem.name}
+              src={previewItem.url}
+              alt={previewItem.key.split('/').pop() || 'Image'}
               className="max-h-[60vh] w-auto border border-border object-contain"
             />
             <div className="mt-4 flex items-center justify-between">
               <div>
-                <p className="text-xs text-foreground">{previewItem.name}</p>
+                <p className="text-xs text-foreground">{previewItem.key.split('/').pop()}</p>
                 <p className="text-[10px] text-muted-foreground">
-                  {previewItem.size} &middot; {previewItem.date}
+                  {formatFileSize(previewItem.size)} &middot; {formatDate(previewItem.lastModified)}
                 </p>
               </div>
               <button
@@ -219,7 +286,7 @@ export default function AdminMediaPage() {
                 onClick={() => copyUrl(previewItem)}
                 className="flex items-center gap-1.5 border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-primary"
               >
-                {copiedId === previewItem.id ? (
+                {copiedKey === previewItem.key ? (
                   <>
                     <Check className="h-3 w-3" /> Copied
                   </>
@@ -228,6 +295,37 @@ export default function AdminMediaPage() {
                     <Copy className="h-3 w-3" /> Copy URL
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="w-full max-w-sm border border-border bg-background p-6">
+            <h2 className="mb-2 text-sm text-foreground">Confirm Delete</h2>
+            <p className="mb-6 text-xs text-muted-foreground">
+              Are you sure you want to delete &ldquo;{deleteTarget.key.split('/').pop()}&rdquo;? This action cannot be undone.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="border border-border px-4 py-2 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex items-center gap-2 border border-destructive px-4 py-2 text-xs text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50"
+              >
+                {deleting && <Loader2 className="h-3 w-3 animate-spin" />}
+                Delete
               </button>
             </div>
           </div>

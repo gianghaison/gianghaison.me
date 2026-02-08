@@ -1,12 +1,14 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { Save, Trash2, ArrowLeft } from "lucide-react"
+import { Save, Trash2, ArrowLeft, Loader2 } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { MarkdownRenderer } from "@/components/markdown-renderer"
 
 interface PostEditorProps {
   initialData?: {
+    id?: string
     title: string
     slug: string
     description: string
@@ -27,6 +29,7 @@ function generateSlug(title: string): string {
 }
 
 export function PostEditor({ initialData, isNew }: PostEditorProps) {
+  const router = useRouter()
   const [title, setTitle] = useState(initialData?.title ?? "")
   const [slug, setSlug] = useState(initialData?.slug ?? "")
   const [description, setDescription] = useState(
@@ -42,6 +45,8 @@ export function PostEditor({ initialData, isNew }: PostEditorProps) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState("")
 
   const handleTitleChange = useCallback(
     (value: string) => {
@@ -55,12 +60,83 @@ export function PostEditor({ initialData, isNew }: PostEditorProps) {
 
   const handleSave = useCallback(async () => {
     setSaving(true)
-    // Simulate save
-    await new Promise((resolve) => setTimeout(resolve, 800))
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
-  }, [])
+    setError("")
+
+    const tags = tagsInput
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean)
+
+    const postData = {
+      title,
+      slug,
+      description,
+      tags,
+      content,
+      published: status === "published",
+    }
+
+    try {
+      let response: Response
+
+      if (isNew) {
+        response = await fetch("/api/posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(postData),
+        })
+      } else if (initialData?.id) {
+        response = await fetch(`/api/posts/${initialData.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(postData),
+        })
+      } else {
+        throw new Error("No post ID for update")
+      }
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "Failed to save post")
+      }
+
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+
+      if (isNew) {
+        const data = await response.json()
+        router.push(`/admin/posts/${data.id}`)
+      }
+    } catch (err) {
+      console.error("Error saving post:", err)
+      setError(err instanceof Error ? err.message : "Failed to save post")
+    } finally {
+      setSaving(false)
+    }
+  }, [title, slug, description, tagsInput, content, status, isNew, initialData, router])
+
+  const handleDelete = useCallback(async () => {
+    if (!initialData?.id) return
+
+    setDeleting(true)
+    try {
+      const response = await fetch(`/api/posts/${initialData.id}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete post")
+      }
+
+      router.push("/admin/posts")
+    } catch (err) {
+      console.error("Error deleting post:", err)
+      setError(err instanceof Error ? err.message : "Failed to delete post")
+    } finally {
+      setDeleting(false)
+      setShowDelete(false)
+    }
+  }, [initialData, router])
 
   const tags = tagsInput
     .split(",")
@@ -84,6 +160,9 @@ export function PostEditor({ initialData, isNew }: PostEditorProps) {
               Back to posts
             </Link>
             <div className="flex items-center gap-3">
+              {error && (
+                <span className="text-xs text-destructive">{error}</span>
+              )}
               {!isNew && (
                 <button
                   type="button"
@@ -100,7 +179,11 @@ export function PostEditor({ initialData, isNew }: PostEditorProps) {
                 disabled={saving}
                 className="flex items-center gap-1.5 border border-primary bg-primary/10 px-4 py-1.5 text-xs text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:opacity-50"
               >
-                <Save className="h-3 w-3" />
+                {saving ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Save className="h-3 w-3" />
+                )}
                 {saving ? "Saving..." : saved ? "Saved" : "Save"}
               </button>
             </div>
@@ -247,15 +330,18 @@ export function PostEditor({ initialData, isNew }: PostEditorProps) {
               <button
                 type="button"
                 onClick={() => setShowDelete(false)}
-                className="border border-border px-4 py-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                disabled={deleting}
+                className="border border-border px-4 py-2 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={() => setShowDelete(false)}
-                className="border border-destructive px-4 py-2 text-xs text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex items-center gap-2 border border-destructive px-4 py-2 text-xs text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50"
               >
+                {deleting && <Loader2 className="h-3 w-3 animate-spin" />}
                 Delete
               </button>
             </div>

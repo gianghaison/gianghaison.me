@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { posts, getAllTags } from "@/lib/blog-data"
+import { getPosts, getAllTags, Post } from "@/lib/firebase"
 import { BlogList } from "@/components/blog-list"
 
 export const metadata: Metadata = {
@@ -7,8 +7,33 @@ export const metadata: Metadata = {
   description: "Thoughts on code, AI, and building things",
 }
 
-export default function BlogPage() {
-  const allTags = getAllTags()
+// Make this page dynamic - don't generate at build time
+export const dynamic = 'force-dynamic'
+
+// Revalidate every 60 seconds
+export const revalidate = 60
+
+export default async function BlogPage() {
+  let posts: Post[] = []
+  try {
+    posts = await getPosts(true) // Only published posts
+  } catch (error) {
+    console.error('Error fetching posts:', error)
+  }
+  const allTags = getAllTags(posts)
+
+  // Convert Firestore posts to BlogPost format for the component
+  const blogPosts = posts.map((post: Post) => ({
+    slug: post.slug,
+    title: post.title,
+    description: post.description,
+    date: post.createdAt instanceof Date
+      ? post.createdAt.toISOString().split('T')[0]
+      : new Date(post.createdAt.seconds * 1000).toISOString().split('T')[0],
+    readingTime: Math.ceil(post.content.split(/\s+/).length / 200), // Estimate reading time
+    tags: post.tags,
+    content: post.content,
+  }))
 
   return (
     <div className="space-y-8">
@@ -22,7 +47,7 @@ export default function BlogPage() {
         </p>
       </header>
 
-      <BlogList posts={posts} allTags={allTags} />
+      <BlogList posts={blogPosts} allTags={allTags} />
     </div>
   )
 }

@@ -1,6 +1,7 @@
 "use client"
 
-import { FileText, Eye, PenLine, Palette } from "lucide-react"
+import { useState, useEffect } from "react"
+import { FileText, Eye, PenLine, Palette, Loader2 } from "lucide-react"
 import Link from "next/link"
 import {
   BarChart,
@@ -11,75 +12,35 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts"
-import { posts } from "@/lib/blog-data"
-import { artworks } from "@/lib/art-data"
 
-const publishedCount = posts.filter(
-  (p) => p.tags.length > 0
-).length
-const draftCount = posts.length - publishedCount
+interface DailyView {
+  date: string
+  views: number
+}
 
-const stats = [
-  {
-    label: "Total Posts",
-    value: posts.length,
-    icon: FileText,
-  },
-  {
-    label: "Published",
-    value: publishedCount,
-    icon: Eye,
-  },
-  {
-    label: "Drafts",
-    value: draftCount,
-    icon: PenLine,
-  },
-  {
-    label: "Total Art",
-    value: artworks.length,
-    icon: Palette,
-  },
-]
+interface Stats {
+  totalPosts: number
+  publishedPosts: number
+  draftPosts: number
+  totalArt: number
+  totalViews: number
+}
 
-const activityItems = [
-  {
-    text: "Published 'How I Use AI to Build Faster'",
-    time: "2h ago",
-  },
-  {
-    text: "Uploaded image dalat-01.webp",
-    time: "5h ago",
-  },
-  {
-    text: "Draft saved 'Launching Hu Vang'",
-    time: "1d ago",
-  },
-  {
-    text: "Updated art piece 'Saigon Rain'",
-    time: "2d ago",
-  },
-  {
-    text: "Published 'My Dev Setup 2026'",
-    time: "3d ago",
-  },
-]
-
-const pageViewsData = [
-  { day: "Mon", views: 124 },
-  { day: "Tue", views: 89 },
-  { day: "Wed", views: 156 },
-  { day: "Thu", views: 201 },
-  { day: "Fri", views: 178 },
-  { day: "Sat", views: 95 },
-  { day: "Sun", views: 142 },
-]
+interface ChartData {
+  day: string
+  views: number
+}
 
 const quickActions = [
   { label: "New Post", href: "/admin/posts/new" },
   { label: "Upload Image", href: "/admin/media" },
   { label: "View Site", href: "/", external: true },
 ]
+
+function formatDay(dateStr: string): string {
+  const date = new Date(dateStr)
+  return date.toLocaleDateString("en-US", { weekday: "short" })
+}
 
 function CustomTooltip({
   active,
@@ -100,6 +61,76 @@ function CustomTooltip({
 }
 
 export default function AdminDashboard() {
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState<Stats>({
+    totalPosts: 0,
+    publishedPosts: 0,
+    draftPosts: 0,
+    totalArt: 0,
+    totalViews: 0,
+  })
+  const [chartData, setChartData] = useState<ChartData[]>([])
+
+  useEffect(() => {
+    fetchAnalytics()
+  }, [])
+
+  async function fetchAnalytics() {
+    try {
+      const response = await fetch("/api/analytics")
+      if (!response.ok) throw new Error("Failed to fetch")
+
+      const data = await response.json()
+
+      if (data.stats) {
+        setStats(data.stats)
+      }
+
+      if (data.dailyViews) {
+        const formatted = data.dailyViews.map((dv: DailyView) => ({
+          day: formatDay(dv.date),
+          views: dv.views,
+        }))
+        setChartData(formatted)
+      }
+    } catch (err) {
+      console.error("Error fetching analytics:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const statCards = [
+    {
+      label: "Total Posts",
+      value: stats.totalPosts,
+      icon: FileText,
+    },
+    {
+      label: "Published",
+      value: stats.publishedPosts,
+      icon: Eye,
+    },
+    {
+      label: "Drafts",
+      value: stats.draftPosts,
+      icon: PenLine,
+    },
+    {
+      label: "Total Art",
+      value: stats.totalArt,
+      icon: Palette,
+    },
+  ]
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8 pt-16 md:pt-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-8 p-6 pt-16 md:p-8 md:pt-8">
       {/* Top bar */}
@@ -115,7 +146,7 @@ export default function AdminDashboard() {
 
       {/* Stats cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {stats.map((stat) => (
+        {statCards.map((stat) => (
           <div
             key={stat.label}
             className="flex flex-col gap-2 border border-border bg-card p-5"
@@ -134,23 +165,16 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Recent activity */}
+        {/* Total views card */}
         <div className="border border-border bg-card">
           <div className="border-b border-border px-5 py-4">
-            <h2 className="text-sm text-foreground">Recent Activity</h2>
+            <h2 className="text-sm text-foreground">Total Page Views</h2>
           </div>
-          <div className="divide-y divide-border">
-            {activityItems.map((item, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between px-5 py-3"
-              >
-                <span className="text-xs text-foreground/80">{item.text}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {item.time}
-                </span>
-              </div>
-            ))}
+          <div className="flex items-center justify-center p-8">
+            <div className="text-center">
+              <p className="text-4xl font-bold text-primary">{stats.totalViews.toLocaleString()}</p>
+              <p className="mt-2 text-xs text-muted-foreground">all time views</p>
+            </div>
           </div>
         </div>
 
@@ -184,35 +208,41 @@ export default function AdminDashboard() {
               </h2>
             </div>
             <div className="p-5">
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={pageViewsData}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="hsl(0 0% 12%)"
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="day"
-                    tick={{ fill: "hsl(220 5% 46%)", fontSize: 11 }}
-                    axisLine={{ stroke: "hsl(0 0% 12%)" }}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fill: "hsl(220 5% 46%)", fontSize: 11 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    content={<CustomTooltip />}
-                    cursor={{ fill: "hsl(0 0% 12% / 0.5)" }}
-                  />
-                  <Bar
-                    dataKey="views"
-                    fill="hsl(142 69% 58%)"
-                    radius={0}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={chartData}>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="hsl(0 0% 12%)"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="day"
+                      tick={{ fill: "hsl(220 5% 46%)", fontSize: 11 }}
+                      axisLine={{ stroke: "hsl(0 0% 12%)" }}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fill: "hsl(220 5% 46%)", fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      content={<CustomTooltip />}
+                      cursor={{ fill: "hsl(0 0% 12% / 0.5)" }}
+                    />
+                    <Bar
+                      dataKey="views"
+                      fill="hsl(142 69% 58%)"
+                      radius={0}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-[200px] items-center justify-center text-xs text-muted-foreground">
+                  No data yet
+                </div>
+              )}
             </div>
           </div>
         </div>

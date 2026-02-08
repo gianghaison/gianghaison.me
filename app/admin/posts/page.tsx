@@ -1,31 +1,94 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Search, Pencil, Trash2 } from "lucide-react"
-import { posts as allPosts } from "@/lib/blog-data"
+import { useRouter } from "next/navigation"
+import { Search, Pencil, Trash2, Loader2 } from "lucide-react"
 
 interface PostRow {
+  id: string
   slug: string
   title: string
   date: string
   status: "published" | "draft"
 }
 
-const postRows: PostRow[] = allPosts.map((p, i) => ({
-  slug: p.slug,
-  title: p.title,
-  date: p.date,
-  status: i < 3 ? "published" : "draft",
-}))
-
 export default function AdminPostsPage() {
+  const router = useRouter()
+  const [posts, setPosts] = useState<PostRow[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<PostRow | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
-  const filtered = postRows.filter((p) =>
+  useEffect(() => {
+    fetchPosts()
+  }, [])
+
+  async function fetchPosts() {
+    try {
+      const response = await fetch("/api/posts?published=false")
+      const data = await response.json()
+
+      if (data.posts) {
+        const postRows: PostRow[] = data.posts.map((p: {
+          id: string
+          slug: string
+          title: string
+          published: boolean
+          createdAt: Date | { seconds: number }
+        }) => ({
+          id: p.id,
+          slug: p.slug,
+          title: p.title,
+          date: p.createdAt instanceof Date
+            ? p.createdAt.toISOString().split('T')[0]
+            : new Date(p.createdAt.seconds * 1000).toISOString().split('T')[0],
+          status: p.published ? "published" : "draft",
+        }))
+        setPosts(postRows)
+      }
+    } catch (error) {
+      console.error("Error fetching posts:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return
+
+    setDeleting(true)
+    try {
+      const response = await fetch(`/api/posts/${deleteTarget.id}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        setPosts(posts.filter((p) => p.id !== deleteTarget.id))
+        setDeleteTarget(null)
+      } else {
+        alert("Failed to delete post")
+      }
+    } catch (error) {
+      console.error("Error deleting post:", error)
+      alert("Failed to delete post")
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const filtered = posts.filter((p) =>
     p.title.toLowerCase().includes(search.toLowerCase())
   )
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8 pt-16 md:pt-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 p-6 pt-16 md:p-8 md:pt-8">
@@ -70,11 +133,11 @@ export default function AdminPostsPage() {
         ) : (
           filtered.map((post) => (
             <div
-              key={post.slug}
+              key={post.id}
               className="grid grid-cols-[1fr_100px_100px_80px] items-center gap-4 border-b border-border px-5 py-3 last:border-b-0"
             >
               <Link
-                href={`/admin/posts/${post.slug}`}
+                href={`/admin/posts/${post.id}`}
                 className="truncate text-xs text-foreground transition-colors hover:text-primary"
               >
                 {post.title}
@@ -93,7 +156,7 @@ export default function AdminPostsPage() {
               <span className="text-xs text-muted-foreground">{post.date}</span>
               <div className="flex items-center justify-end gap-2">
                 <Link
-                  href={`/admin/posts/${post.slug}`}
+                  href={`/admin/posts/${post.id}`}
                   className="p-1 text-muted-foreground transition-colors hover:text-primary"
                   aria-label={`Edit ${post.title}`}
                 >
@@ -101,7 +164,7 @@ export default function AdminPostsPage() {
                 </Link>
                 <button
                   type="button"
-                  onClick={() => setDeleteTarget(post.slug)}
+                  onClick={() => setDeleteTarget(post)}
                   className="p-1 text-muted-foreground transition-colors hover:text-destructive"
                   aria-label={`Delete ${post.title}`}
                 >
@@ -119,22 +182,25 @@ export default function AdminPostsPage() {
           <div className="w-full max-w-sm border border-border bg-background p-6">
             <h2 className="mb-2 text-sm text-foreground">Confirm Delete</h2>
             <p className="mb-6 text-xs text-muted-foreground">
-              Are you sure you want to delete this post? This action cannot be
+              Are you sure you want to delete &ldquo;{deleteTarget.title}&rdquo;? This action cannot be
               undone.
             </p>
             <div className="flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setDeleteTarget(null)}
-                className="border border-border px-4 py-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                disabled={deleting}
+                className="border border-border px-4 py-2 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={() => setDeleteTarget(null)}
-                className="border border-destructive px-4 py-2 text-xs text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex items-center gap-2 border border-destructive px-4 py-2 text-xs text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50"
               >
+                {deleting && <Loader2 className="h-3 w-3 animate-spin" />}
                 Delete
               </button>
             </div>

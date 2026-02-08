@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { artworks, getAllCategories } from "@/lib/art-data"
+import { getArtworks, getAllCategories, Art } from "@/lib/firebase"
 import { ArtGallery } from "@/components/art-gallery"
 
 export const metadata: Metadata = {
@@ -7,8 +7,34 @@ export const metadata: Metadata = {
   description: "Sketches, paintings, and visual experiments.",
 }
 
-export default function ArtPage() {
-  const categories = getAllCategories()
+// Make this page dynamic - don't generate at build time
+export const dynamic = 'force-dynamic'
+
+// Revalidate every 60 seconds
+export const revalidate = 60
+
+export default async function ArtPage() {
+  let artworks: Art[] = []
+  try {
+    artworks = await getArtworks()
+  } catch (error) {
+    console.error('Error fetching artworks:', error)
+  }
+  const categories = getAllCategories(artworks)
+
+  // Convert Firestore artworks to the format expected by ArtGallery component
+  const galleryArtworks = artworks.map((art) => ({
+    slug: art.slug,
+    title: art.title,
+    medium: art.medium,
+    category: art.category,
+    date: art.createdAt instanceof Date
+      ? art.createdAt.toISOString().split('T')[0]
+      : new Date((art.createdAt as { seconds: number }).seconds * 1000).toISOString().split('T')[0],
+    dimensions: art.dimensions,
+    image: art.image,
+    description: art.description,
+  }))
 
   return (
     <div className="space-y-8">
@@ -23,7 +49,7 @@ export default function ArtPage() {
         </p>
       </header>
 
-      <ArtGallery artworks={artworks} categories={categories} />
+      <ArtGallery artworks={galleryArtworks} categories={categories} />
     </div>
   )
 }

@@ -1,46 +1,117 @@
 "use client"
 
-import { useState } from "react"
-import { Search, Pencil, Trash2, Plus, X, Upload } from "lucide-react"
-import { artworks as allArtworks, type Artwork } from "@/lib/art-data"
+import { useState, useEffect, useRef } from "react"
+import { Search, Pencil, Trash2, Plus, X, Upload, Loader2 } from "lucide-react"
 
-const mediumOptions = ["watercolor", "digital", "sketch", "oil", "mixed"]
+const categoryOptions = ["watercolor", "digital", "sketch"] as const
+
+interface Artwork {
+  id: string
+  slug: string
+  title: string
+  medium: string
+  category: "watercolor" | "digital" | "sketch"
+  dimensions: string
+  description?: string
+  image: string
+  date: string
+}
 
 interface ArtFormData {
   title: string
   slug: string
   medium: string
-  category: string
+  category: "watercolor" | "digital" | "sketch"
   dimensions: string
   description: string
   image: string
+  tags: string[]
 }
 
 const emptyForm: ArtFormData = {
   title: "",
   slug: "",
-  medium: "watercolor",
+  medium: "watercolor on paper",
   category: "watercolor",
   dimensions: "",
   description: "",
   image: "",
+  tags: [],
+}
+
+function generateSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
 }
 
 export default function AdminArtPage() {
+  const [artworks, setArtworks] = useState<Artwork[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [showForm, setShowForm] = useState(false)
-  const [editingSlug, setEditingSlug] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<ArtFormData>(emptyForm)
   const [saving, setSaving] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Artwork | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState("")
+  const fileRef = useRef<HTMLInputElement>(null)
 
-  const filtered = allArtworks.filter((a) =>
+  useEffect(() => {
+    fetchArtworks()
+  }, [])
+
+  async function fetchArtworks() {
+    try {
+      const response = await fetch("/api/art")
+      const data = await response.json()
+
+      if (data.artworks) {
+        const items: Artwork[] = data.artworks.map((a: {
+          id: string
+          slug: string
+          title: string
+          medium: string
+          category: "watercolor" | "digital" | "sketch"
+          dimensions: string
+          description?: string
+          image: string
+          createdAt: Date | { seconds: number }
+        }) => ({
+          id: a.id,
+          slug: a.slug,
+          title: a.title,
+          medium: a.medium,
+          category: a.category,
+          dimensions: a.dimensions,
+          description: a.description,
+          image: a.image,
+          date: a.createdAt instanceof Date
+            ? a.createdAt.toISOString().split('T')[0]
+            : new Date(a.createdAt.seconds * 1000).toISOString().split('T')[0],
+        }))
+        setArtworks(items)
+      }
+    } catch (err) {
+      console.error("Error fetching artworks:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filtered = artworks.filter((a) =>
     a.title.toLowerCase().includes(search.toLowerCase())
   )
 
   const openNew = () => {
     setForm(emptyForm)
-    setEditingSlug(null)
+    setEditingId(null)
+    setError("")
     setShowForm(true)
   }
 
@@ -53,20 +124,133 @@ export default function AdminArtPage() {
       dimensions: artwork.dimensions,
       description: artwork.description || "",
       image: artwork.image,
+      tags: [],
     })
-    setEditingSlug(artwork.slug)
+    setEditingId(artwork.id)
+    setError("")
     setShowForm(true)
   }
 
-  const handleSave = async () => {
-    setSaving(true)
-    await new Promise((r) => setTimeout(r, 800))
-    setSaving(false)
-    setShowForm(false)
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    setError("")
+
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("folder", "art")
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "Upload failed")
+      }
+
+      const data = await response.json()
+      setForm((prev) => ({ ...prev, image: data.url }))
+    } catch (err) {
+      console.error("Upload error:", err)
+      setError(err instanceof Error ? err.message : "Upload failed")
+    } finally {
+      setUploading(false)
+    }
   }
 
-  const updateField = (field: keyof ArtFormData, value: string) => {
+  async function handleSave() {
+    if (!form.title || !form.image || !form.dimensions) {
+      setError("Please fill in all required fields")
+      return
+    }
+
+    setSaving(true)
+    setError("")
+
+    const artData = {
+      title: form.title,
+      slug: form.slug || generateSlug(form.title),
+      medium: form.medium,
+      category: form.category,
+      dimensions: form.dimensions,
+      description: form.description,
+      image: form.image,
+      tags: form.tags,
+    }
+
+    try {
+      let response: Response
+
+      if (editingId) {
+        response = await fetch(`/api/art/${editingId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(artData),
+        })
+      } else {
+        response = await fetch("/api/art", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(artData),
+        })
+      }
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "Failed to save artwork")
+      }
+
+      setShowForm(false)
+      fetchArtworks()
+    } catch (err) {
+      console.error("Save error:", err)
+      setError(err instanceof Error ? err.message : "Failed to save artwork")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return
+
+    setDeleting(true)
+    try {
+      const response = await fetch(`/api/art/${deleteTarget.id}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete artwork")
+      }
+
+      setArtworks(artworks.filter((a) => a.id !== deleteTarget.id))
+      setDeleteTarget(null)
+    } catch (err) {
+      console.error("Delete error:", err)
+      alert("Failed to delete artwork")
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const updateField = <K extends keyof ArtFormData>(field: K, value: ArtFormData[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }))
+    if (field === "title" && !editingId) {
+      setForm((prev) => ({ ...prev, slug: generateSlug(value as string) }))
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8 pt-16 md:pt-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
   }
 
   return (
@@ -99,7 +283,7 @@ export default function AdminArtPage() {
       <div className="border border-border">
         <div className="grid grid-cols-[1fr_120px_100px_100px_80px] gap-4 border-b border-border bg-secondary/50 px-5 py-3 text-xs text-muted-foreground">
           <span>Title</span>
-          <span>Medium</span>
+          <span>Category</span>
           <span>Dimensions</span>
           <span>Date</span>
           <span className="text-right">Actions</span>
@@ -111,7 +295,7 @@ export default function AdminArtPage() {
         ) : (
           filtered.map((artwork) => (
             <div
-              key={artwork.slug}
+              key={artwork.id}
               className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center gap-4 border-b border-border px-5 py-3 last:border-b-0"
             >
               <button
@@ -141,7 +325,7 @@ export default function AdminArtPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDeleteTarget(artwork.slug)}
+                  onClick={() => setDeleteTarget(artwork)}
                   className="p-1 text-muted-foreground transition-colors hover:text-destructive"
                   aria-label={`Delete ${artwork.title}`}
                 >
@@ -159,7 +343,7 @@ export default function AdminArtPage() {
           <div className="w-full max-w-lg border border-border bg-background">
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <h2 className="text-sm text-foreground">
-                {editingSlug ? "Edit Artwork" : "New Artwork"}
+                {editingId ? "Edit Artwork" : "New Artwork"}
               </h2>
               <button
                 type="button"
@@ -170,25 +354,62 @@ export default function AdminArtPage() {
               </button>
             </div>
             <div className="space-y-4 p-5">
+              {error && (
+                <div className="p-3 text-xs text-red-500 bg-red-500/10 rounded">
+                  {error}
+                </div>
+              )}
+
               {/* Image upload */}
               <div>
                 <label className="mb-1.5 block text-[10px] text-muted-foreground">
-                  Image
+                  Image *
                 </label>
-                <div className="flex items-center justify-center border border-dashed border-border py-8 cursor-pointer hover:border-muted-foreground transition-colors">
-                  <div className="flex flex-col items-center gap-2 text-center">
-                    <Upload className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-[10px] text-muted-foreground">
-                      Click to upload artwork image
-                    </span>
+                {form.image ? (
+                  <div className="relative">
+                    <img
+                      src={form.image}
+                      alt="Preview"
+                      className="w-full h-40 object-cover border border-border"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, image: "" }))}
+                      className="absolute top-2 right-2 p-1 bg-background/80 text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
                   </div>
-                </div>
+                ) : (
+                  <div
+                    onClick={() => fileRef.current?.click()}
+                    className="flex items-center justify-center border border-dashed border-border py-8 cursor-pointer hover:border-muted-foreground transition-colors"
+                  >
+                    <div className="flex flex-col items-center gap-2 text-center">
+                      {uploading ? (
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                      ) : (
+                        <Upload className="h-5 w-5 text-muted-foreground" />
+                      )}
+                      <span className="text-[10px] text-muted-foreground">
+                        {uploading ? "Uploading..." : "Click to upload artwork image"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
               </div>
 
               {/* Title */}
               <div>
                 <label className="mb-1.5 block text-[10px] text-muted-foreground">
-                  Title
+                  Title *
                 </label>
                 <input
                   type="text"
@@ -198,28 +419,42 @@ export default function AdminArtPage() {
                 />
               </div>
 
-              {/* Medium dropdown */}
+              {/* Category dropdown */}
               <div>
                 <label className="mb-1.5 block text-[10px] text-muted-foreground">
-                  Medium
+                  Category *
                 </label>
                 <select
-                  value={form.medium}
-                  onChange={(e) => updateField("medium", e.target.value)}
+                  value={form.category}
+                  onChange={(e) => updateField("category", e.target.value as typeof form.category)}
                   className="w-full border border-border bg-card px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
                 >
-                  {mediumOptions.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
+                  {categoryOptions.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
                     </option>
                   ))}
                 </select>
               </div>
 
+              {/* Medium */}
+              <div>
+                <label className="mb-1.5 block text-[10px] text-muted-foreground">
+                  Medium
+                </label>
+                <input
+                  type="text"
+                  value={form.medium}
+                  onChange={(e) => updateField("medium", e.target.value)}
+                  placeholder="e.g. watercolor on paper, digital (Procreate)"
+                  className="w-full border border-border bg-card px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none"
+                />
+              </div>
+
               {/* Dimensions */}
               <div>
                 <label className="mb-1.5 block text-[10px] text-muted-foreground">
-                  Dimensions
+                  Dimensions *
                 </label>
                 <input
                   type="text"
@@ -255,9 +490,10 @@ export default function AdminArtPage() {
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={saving}
-                className="border border-primary bg-primary/10 px-4 py-2 text-xs text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:opacity-50"
+                disabled={saving || uploading}
+                className="flex items-center gap-2 border border-primary bg-primary/10 px-4 py-2 text-xs text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:opacity-50"
               >
+                {saving && <Loader2 className="h-3 w-3 animate-spin" />}
                 {saving ? "Saving..." : "Save"}
               </button>
             </div>
@@ -271,22 +507,25 @@ export default function AdminArtPage() {
           <div className="w-full max-w-sm border border-border bg-background p-6">
             <h2 className="mb-2 text-sm text-foreground">Confirm Delete</h2>
             <p className="mb-6 text-xs text-muted-foreground">
-              Are you sure you want to delete this artwork? This action cannot
+              Are you sure you want to delete &ldquo;{deleteTarget.title}&rdquo;? This action cannot
               be undone.
             </p>
             <div className="flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setDeleteTarget(null)}
-                className="border border-border px-4 py-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                disabled={deleting}
+                className="border border-border px-4 py-2 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={() => setDeleteTarget(null)}
-                className="border border-destructive px-4 py-2 text-xs text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex items-center gap-2 border border-destructive px-4 py-2 text-xs text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50"
               >
+                {deleting && <Loader2 className="h-3 w-3 animate-spin" />}
                 Delete
               </button>
             </div>

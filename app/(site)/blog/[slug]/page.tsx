@@ -1,12 +1,24 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { posts, getPostBySlug, getAdjacentPosts } from "@/lib/blog-data"
+import { getPosts, getPostBySlug, getAdjacentPosts, Post } from "@/lib/firebase"
 import { MarkdownRenderer } from "@/components/markdown-renderer"
 import { CopyLinkButton } from "@/components/copy-link-button"
 
+// Make this page dynamic - don't generate at build time
+export const dynamic = 'force-dynamic'
+
+// Revalidate every 60 seconds
+export const revalidate = 60
+
 export async function generateStaticParams() {
-  return posts.map((post) => ({ slug: post.slug }))
+  try {
+    const posts = await getPosts(true)
+    return posts.map((post) => ({ slug: post.slug }))
+  } catch (error) {
+    console.error('Error generating static params:', error)
+    return []
+  }
 }
 
 export async function generateMetadata({
@@ -15,12 +27,36 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>
 }): Promise<Metadata> {
   const { slug } = await params
-  const post = getPostBySlug(slug)
+  const post = await getPostBySlug(slug)
+
   if (!post) return { title: "Post not found" }
+
   return {
     title: `${post.title} | gianghaison.me`,
     description: post.description,
+    openGraph: {
+      title: post.title,
+      description: post.description,
+      type: "article",
+      url: `https://gianghaison.me/blog/${post.slug}`,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: post.description,
+    },
   }
+}
+
+function formatDate(date: Date | { seconds: number }): string {
+  if (date instanceof Date) {
+    return date.toISOString().split('T')[0]
+  }
+  return new Date(date.seconds * 1000).toISOString().split('T')[0]
+}
+
+function calculateReadingTime(content: string): number {
+  return Math.ceil(content.split(/\s+/).length / 200)
 }
 
 export default async function BlogPostPage({
@@ -29,13 +65,17 @@ export default async function BlogPostPage({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const post = getPostBySlug(slug)
+  const post = await getPostBySlug(slug)
 
-  if (!post) {
+  if (!post || !post.published) {
     notFound()
   }
 
-  const { previous, next } = getAdjacentPosts(slug)
+  const allPosts = await getPosts(true)
+  const { previous, next } = getAdjacentPosts(allPosts, slug)
+
+  const date = formatDate(post.createdAt)
+  const readingTime = calculateReadingTime(post.content)
 
   return (
     <article className="space-y-8">
@@ -51,9 +91,9 @@ export default async function BlogPostPage({
       {/* Metadata */}
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span>{post.date}</span>
+          <span>{date}</span>
           <span>|</span>
-          <span>{post.readingTime} min read</span>
+          <span>{readingTime} min read</span>
           <span>|</span>
           {post.tags.map((tag) => (
             <span key={tag}>--{tag}</span>
