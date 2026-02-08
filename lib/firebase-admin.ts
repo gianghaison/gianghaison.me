@@ -28,13 +28,21 @@ function getAdminApp(): App {
         })
       } else {
         // Option 2: Use individual environment variables
+        const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+        const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL || process.env.FIREBASE_CLIENT_EMAIL
+        const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY || process.env.FIREBASE_PRIVATE_KEY
+
+        if (!projectId || !clientEmail || !privateKey) {
+          throw new Error('Firebase Admin SDK: Missing required environment variables (FIREBASE_ADMIN_PROJECT_ID, FIREBASE_ADMIN_CLIENT_EMAIL, FIREBASE_ADMIN_PRIVATE_KEY)')
+        }
+
         adminApp = initializeApp({
           credential: cert({
-            projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'YOUR_PROJECT_ID',
-            clientEmail: process.env.FIREBASE_CLIENT_EMAIL || 'YOUR_CLIENT_EMAIL',
-            privateKey: (process.env.FIREBASE_PRIVATE_KEY || 'YOUR_PRIVATE_KEY').replace(/\\n/g, '\n'),
+            projectId,
+            clientEmail,
+            privateKey: privateKey.replace(/\\n/g, '\n'),
           }),
-          projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+          projectId,
         })
       }
     } else {
