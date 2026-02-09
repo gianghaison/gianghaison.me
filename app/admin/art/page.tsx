@@ -91,9 +91,13 @@ export default function AdminArtPage() {
           dimensions: a.dimensions,
           description: a.description,
           image: a.image,
-          date: a.createdAt instanceof Date
-            ? a.createdAt.toISOString().split('T')[0]
-            : new Date(a.createdAt.seconds * 1000).toISOString().split('T')[0],
+          date: (() => {
+            if (!a.createdAt) return new Date().toISOString().split('T')[0]
+            if (a.createdAt instanceof Date) return a.createdAt.toISOString().split('T')[0]
+            if (typeof a.createdAt === 'string') return a.createdAt.split('T')[0]
+            if (a.createdAt.seconds) return new Date(a.createdAt.seconds * 1000).toISOString().split('T')[0]
+            return new Date().toISOString().split('T')[0]
+          })(),
         }))
         setArtworks(items)
       }

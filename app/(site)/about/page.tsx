@@ -98,12 +98,26 @@ export default function AboutPage() {
             <span>
               {"Twitter/X: "}
               <a
-                href="https://twitter.com/gianghaison"
+                href="https://x.com/gianghaison"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary hover:underline"
               >
                 @gianghaison
+              </a>
+            </span>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-primary select-none">{"\u2192"}</span>
+            <span>
+              {"Facebook: "}
+              <a
+                href="https://www.facebook.com/gianghaison.me"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                gianghaison.me
               </a>
             </span>
           </div>
