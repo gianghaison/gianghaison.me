@@ -1,6 +1,7 @@
 import React from "react"
 import type { Metadata, Viewport } from "next"
 import { JetBrains_Mono } from "next/font/google"
+import { UmamiAnalytics } from "@/components/umami-analytics"
 import "./globals.css"
 
 const jetbrainsMono = JetBrains_Mono({
@@ -38,6 +39,7 @@ export default function RootLayout({
         className={`${jetbrainsMono.variable} font-mono antialiased leading-[1.7]`}
         suppressHydrationWarning
       >
+        <UmamiAnalytics />
         {children}
       </body>
     </html>
