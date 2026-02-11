@@ -13,6 +13,7 @@ Personal website & blog c\u1ee7a Giang H\u1ea3i S\u01a1n - Designer & Indie Make
 | Auth | Firebase Authentication |
 | Storage | Cloudflare R2 (S3-compatible) |
 | Image Processing | Sharp |
+| Analytics | Umami (self-hosted, privacy-first) |
 | Hosting | Vercel |
 
 ## Project Structure
@@ -61,6 +62,7 @@ components/
 ├── post-editor.tsx            # Markdown editor with preview
 ├── markdown-renderer.tsx      # Custom markdown renderer
 ├── page-view-tracker.tsx      # Analytics tracking component
+├── umami-analytics.tsx        # Umami Analytics script loader
 ├── navigation.tsx             # Header navigation
 ├── admin-sidebar.tsx          # Admin panel sidebar
 ├── terminal-hero.tsx          # Animated hero section
@@ -169,6 +171,16 @@ middleware.ts                  # Auth protection for /admin routes
 - Author info (name, email, GitHub)
 - Save to Firestore
 - Clear cache (revalidate pages)
+
+### Analytics
+
+#### Umami Analytics
+- **Privacy-first**: No cookies, GDPR compliant
+- **Self-hosted** tại `analytics.gianghaison.me`
+- **Realtime tracking**: Xem visitors đang online
+- **Multi-site support**: Có thể track nhiều website
+- **Metrics**: Page views, visitors, bounce rate, referrers, countries, devices, browsers
+- **Dashboard**: `https://analytics.gianghaison.me`
 
 ### API Endpoints
 
@@ -292,6 +304,10 @@ R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
 R2_BUCKET_NAME=
 R2_PUBLIC_URL=
+
+# Umami Analytics (optional)
+NEXT_PUBLIC_UMAMI_WEBSITE_ID=
+NEXT_PUBLIC_UMAMI_SCRIPT_URL=
 ```
 
 ## Development
