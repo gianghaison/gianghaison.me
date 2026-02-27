@@ -12,12 +12,14 @@ import {
   ArrowLeft,
   Menu,
   X,
+  ClipboardList,
 } from "lucide-react"
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: BarChart3 },
   { href: "/admin/posts", label: "Posts", icon: FileText },
   { href: "/admin/art", label: "Art", icon: Palette },
+  { href: "/admin/surveys", label: "Surveys", icon: ClipboardList },
   { href: "/admin/media", label: "Media", icon: FolderOpen },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ]
