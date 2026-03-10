@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPosts, createPost, Post } from '@/lib/firebase'
-import { verifySessionCookie } from '@/lib/firebase-admin'
+import { getPosts, Post } from '@/lib/firebase'
+import { verifySessionCookie, getAdminFirestore } from '@/lib/firebase-admin'
 import { cookies } from 'next/headers'
+import { FieldValue } from 'firebase-admin/firestore'
 
 // GET /api/posts - Get all posts
 export async function GET(request: NextRequest) {
@@ -72,7 +73,14 @@ export async function POST(request: NextRequest) {
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
     }
 
-    const id = await createPost(post)
+    const adminDb = getAdminFirestore()
+    const docRef = await adminDb.collection('posts').add({
+      ...post,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+      publishedAt: postStatus === 'published' ? FieldValue.serverTimestamp() : null,
+    })
+    const id = docRef.id
 
     return NextResponse.json({ id, message: 'Post created successfully' }, { status: 201 })
   } catch (error) {
