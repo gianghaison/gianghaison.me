@@ -6,26 +6,20 @@ import { ArtGallery } from "@/components/art-gallery"
 async function fetchArtworks(): Promise<Art[]> {
   try {
     const db = getAdminFirestore()
-    const snap = await db.collection('artworks')
-      .where('status', '==', 'published')
+    const snap = await db.collection('art')
       .orderBy('createdAt', 'desc')
       .get()
-    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Art))
+    const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Art))
+    // Filter published (or no status field = legacy published)
+    return all.filter((a: any) => !a.status || a.status === 'published')
   } catch (e) {
     console.error('fetchArtworks error:', e)
-    // Fallback: không filter status (backward compat)
-    try {
-      const db = getAdminFirestore()
-      const snap = await db.collection('artworks').orderBy('createdAt', 'desc').get()
-      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Art))
-    } catch {
-      return []
-    }
+    return []
   }
 }
 
 export const metadata: Metadata = {
-  title: "art | Giang H\u1ea3i S\u01a1n",
+  title: "art | Giang Hải Sơn",
   description: "Sketches, paintings, and visual experiments.",
 }
 
@@ -70,7 +64,7 @@ export default async function ArtPage() {
           <div className="flex">
             <span className="shrink-0 text-primary select-none">{"$ "}</span>
             <span className="text-muted-foreground">
-              {"ls art/ \u2192 (empty) \u2014 Gallery coming soon."}
+              {"ls art/ → (empty) — Gallery coming soon."}
             </span>
           </div>
         </div>
