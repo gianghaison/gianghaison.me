@@ -284,13 +284,16 @@ export async function deletePost(id: string): Promise<void> {
 // ===========================================
 // Art CRUD
 // ===========================================
-export async function getArtworks(): Promise<Art[]> {
+export async function getArtworks(publishedOnly = true): Promise<Art[]> {
   const db = getFirestoreDb()
-  const artRef = collection(db, 'art')
-  const q = query(artRef, orderBy('createdAt', 'desc'))
-
+  const ref = collection(db, 'artworks')
+  const q = query(ref, orderBy('createdAt', 'desc'))
   const snapshot = await getDocs(q)
-  return snapshot.docs.map(docToArt)
+  let artworks = snapshot.docs.map(docToArt)
+  if (publishedOnly) {
+    artworks = artworks.filter(a => (a as any).status === 'published' || !(a as any).status)
+  }
+  return artworks
 }
 
 export async function getArtworkBySlug(slug: string): Promise<Art | null> {

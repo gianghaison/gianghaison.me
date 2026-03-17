@@ -3,6 +3,21 @@
 ## Ngôn ngữ
 - Giao tiếp bằng **Tiếng Việt**
 
+## ⚠️ DEPLOY RULE — BẮT BUỘC
+
+Trước khi `git push` lên `main`, LUÔN chạy:
+```bash
+npm run build
+```
+- ✅ Pass → `git add -A && git commit -m "..." && git push`
+- ❌ Fail → đọc error → fix → build lại → mới push
+
+**KHÔNG** dùng `npx tsc --noEmit` thay thế — không đủ, bỏ sót lỗi SSR.
+
+Khi Sơn nói "push", "commit", "deploy" → nhắc chạy `npm run build` trước.
+
+---
+
 ## Quy trình commit
 Trước khi commit, **luôn hỏi**:
 ```
