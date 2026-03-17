@@ -1,6 +1,28 @@
 import type { Metadata } from "next"
-import { getArtworks, getAllCategories, Art } from "@/lib/firebase"
+import { getAdminFirestore } from "@/lib/firebase-admin"
+import { getAllCategories, Art } from "@/lib/firebase"
 import { ArtGallery } from "@/components/art-gallery"
+
+async function fetchArtworks(): Promise<Art[]> {
+  try {
+    const db = getAdminFirestore()
+    const snap = await db.collection('artworks')
+      .where('status', '==', 'published')
+      .orderBy('createdAt', 'desc')
+      .get()
+    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Art))
+  } catch (e) {
+    console.error('fetchArtworks error:', e)
+    // Fallback: không filter status (backward compat)
+    try {
+      const db = getAdminFirestore()
+      const snap = await db.collection('artworks').orderBy('createdAt', 'desc').get()
+      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Art))
+    } catch {
+      return []
+    }
+  }
+}
 
 export const metadata: Metadata = {
   title: "art | Giang H\u1ea3i S\u01a1n",
@@ -11,12 +33,7 @@ export const metadata: Metadata = {
 export const revalidate = 60
 
 export default async function ArtPage() {
-  let artworks: Art[] = []
-  try {
-    artworks = await getArtworks()
-  } catch (error) {
-    console.error('Error fetching artworks:', error)
-  }
+  const artworks = await fetchArtworks()
   const categories = getAllCategories(artworks)
 
   // Convert Firestore artworks to the format expected by ArtGallery component
