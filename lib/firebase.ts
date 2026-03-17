@@ -286,7 +286,7 @@ export async function deletePost(id: string): Promise<void> {
 // ===========================================
 export async function getArtworks(publishedOnly = true): Promise<Art[]> {
   const db = getFirestoreDb()
-  const ref = collection(db, 'artworks')
+  const ref = collection(db, 'art')
   const q = query(ref, orderBy('createdAt', 'desc'))
   const snapshot = await getDocs(q)
   let artworks = snapshot.docs.map(docToArt)
