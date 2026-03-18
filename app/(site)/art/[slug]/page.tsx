@@ -39,10 +39,15 @@ export async function generateMetadata({
 
 export async function generateStaticParams() {
   try {
-    const artworks = await getArtworks()
-    return artworks.map((artwork) => ({
-      slug: artwork.slug,
-    }))
+    const { getAdminFirestore } = await import('@/lib/firebase-admin')
+    const db = getAdminFirestore()
+    const snap = await db.collection('art')
+      .orderBy('createdAt', 'desc')
+      .get()
+    const artworks = snap.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter((a: any) => !a.status || a.status === 'published')
+    return artworks.map((artwork: any) => ({ slug: artwork.slug }))
   } catch (error) {
     console.error('Error generating static params:', error)
     return []
@@ -51,11 +56,17 @@ export async function generateStaticParams() {
 
 export default async function ArtDetailPage({ params }: ArtDetailPageProps) {
   const { slug } = await params
-  const artwork = await getArtworkBySlug(slug)
-
-  if (!artwork) notFound()
-
-  const allArtworks = await getArtworks()
+  const { getAdminFirestore } = await import('@/lib/firebase-admin')
+  const db = getAdminFirestore()
+  const snap = await db.collection('art').where('slug', '==', slug).limit(1).get()
+  if (snap.empty) notFound()
+  const doc = snap.docs[0]
+  const artwork = { id: doc.id, ...doc.data() } as any
+  if (artwork.status && artwork.status !== 'published') notFound()
+  const allSnap = await db.collection('art').orderBy('createdAt', 'desc').get()
+  const allArtworks = allSnap.docs
+    .map(d => ({ id: d.id, ...d.data() } as any))
+    .filter((a: any) => !a.status || a.status === 'published')
   const { previous, next } = getAdjacentArtworks(allArtworks, slug)
 
   // Convert to the format expected by ArtDetail component

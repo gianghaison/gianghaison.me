@@ -27,16 +27,33 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
         {children}
       </p>
     ),
-    a: ({ href, children }) => (
-      <a
-        href={href}
-        className="text-primary underline-offset-4 hover:underline"
-        target={href?.startsWith("http") ? "_blank" : undefined}
-        rel={href?.startsWith("http") ? "noopener noreferrer" : undefined}
-      >
-        {children}
-      </a>
-    ),
+    a: ({ href, children }) => {
+      let finalHref = href || ''
+
+      if (
+        finalHref.startsWith('/') &&
+        !finalHref.startsWith('/blog/') &&
+        !finalHref.startsWith('/art/') &&
+        !finalHref.startsWith('/about') &&
+        !finalHref.startsWith('/khaosat') &&
+        !finalHref.startsWith('/#')
+      ) {
+        finalHref = `/blog${finalHref}`
+      }
+
+      const isExternal = finalHref.startsWith('http')
+
+      return (
+        <a
+          href={finalHref}
+          className="text-primary underline-offset-4 hover:underline"
+          target={isExternal ? '_blank' : undefined}
+          rel={isExternal ? 'noopener noreferrer' : undefined}
+        >
+          {children}
+        </a>
+      )
+    },
     ul: ({ children }) => (
       <ul className="mb-4 space-y-1 pl-1">{children}</ul>
     ),

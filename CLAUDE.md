@@ -43,6 +43,28 @@ Bạn đã test local chưa? Nếu OK, push lên Production?
 - `npm run build` - Build production
 - `npm install` - Install dependencies (với legacy-peer-deps)
 
+---
+
+## ⚠️ CONTENT RULES — BẮT BUỘC KHI VIẾT BLOG
+
+### Internal links — PHẢI dùng đúng prefix
+
+| Loại link | ✅ Đúng | ❌ Sai |
+|---|---|---|
+| Link sang bài blog khác | `/blog/ten-bai-viet` | `/ten-bai-viet` |
+| Link sang art | `/art/ten-artwork` | `/ten-artwork` |
+| Link sang trang tĩnh | `/about` | `about` |
+| Link ngoài | `https://...` | không có http |
+
+**Quy tắc:** Mọi internal link trong nội dung markdown BẮT BUỘC có đầy đủ path từ root.
+- Blog post → `/blog/slug`
+- Artwork → `/art/slug`
+- Trang tĩnh → `/about`, `/art`, `/blog`
+
+**KHÔNG BAO GIỜ** viết link dạng `/ten-bai` không có section prefix — sẽ gây 404.
+
+---
+
 ## Firestore Collections
 
 ### `posts` - Blog posts
@@ -93,6 +115,7 @@ R2_PUBLIC_URL=https://r2.gianghaison.me
 ## Key Files
 - `lib/firebase.ts` - Firebase client & CRUD functions
 - `lib/r2.ts` - Cloudflare R2 upload functions
+- `components/markdown-renderer.tsx` - Render markdown content trong blog posts
 - `components/recent-posts.tsx` - Homepage recent posts (async server component)
 - `components/art-gallery.tsx` - Art gallery grid
 - `next.config.mjs` - Next.js config (includes R2 domain in remotePatterns)
