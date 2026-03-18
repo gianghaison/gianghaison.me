@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, slug, image, medium, dimensions, description, category, tags } = body
+    const { title, slug, image, medium, dimensions, description, category, tags, status } = body
 
     // Validate required fields
     if (!title || !slug || !image || !medium || !dimensions || !category) {
@@ -52,6 +52,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const artStatus = ['draft', 'published'].includes(status) ? status : 'published'
+
     const art: Omit<Art, 'id' | 'createdAt'> = {
       title,
       slug,
@@ -63,7 +65,7 @@ export async function POST(request: NextRequest) {
       tags: tags || [],
     }
 
-    const id = await createArt(art)
+    const id = await createArt({ ...art, status: artStatus } as any)
 
     return NextResponse.json({ id, message: 'Artwork created successfully' }, { status: 201 })
   } catch (error) {

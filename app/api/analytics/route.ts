@@ -29,8 +29,9 @@ export async function GET() {
 
     // Calculate stats
     const totalViews = pageViews.reduce((sum, pv) => sum + pv.views, 0)
-    const publishedPosts = posts.filter(p => p.published).length
-    const draftPosts = posts.length - publishedPosts
+    const publishedPosts = posts.filter(p => p.status === 'published').length
+    const draftPosts = posts.filter(p => p.status === 'draft').length
+    const scheduledPosts = posts.filter(p => p.status === 'scheduled').length
 
     return NextResponse.json({
       pageViews,
@@ -39,6 +40,7 @@ export async function GET() {
         totalPosts: posts.length,
         publishedPosts,
         draftPosts,
+        scheduledPosts,
         totalArt: artworks.length,
         totalViews,
       },
