@@ -10,41 +10,41 @@
 ## STATUS HIỆN TẠI
 
 ### ✅ Đã hoạt động
-- Blog CRUD qua MCP (create/update/publish/delete)
+- Blog CRUD qua MCP
 - Art gallery CRUD qua MCP
 - Upload ảnh lên R2 qua MCP
 - Auth: session cookie + Firebase Admin SDK
 - Sitemap động (blog + art)
 - Umami analytics
 - Scheduled posts
-- POST /api/posts → Admin SDK
-- Analytics đếm đúng publishedPosts/draftPosts/scheduledPosts ✅ (fixed 18/03)
-- Art POST có status field ✅ (fixed 18/03)
-- Revalidate hỗ trợ Bearer token ✅ (fixed 18/03)
+- Analytics đếm đúng publishedPosts/draftPosts/scheduledPosts
+- Art POST có status field
+- Revalidate hỗ trợ Bearer token
+- Art detail page dùng Admin Firestore (fix 404)
+- MarkdownRenderer auto-correct internal links thiếu /blog prefix
 
 ### ⏳ Todo tiếp theo
-- Thêm REVALIDATE_SECRET_TOKEN vào Vercel dashboard ⚠️ (chưa làm)
-- Thêm OG image cho blog posts (SEO)
-- On-demand revalidate từ MCP sau khi publish
+- Thêm REVALIDATE_SECRET_TOKEN vào Vercel dashboard ⚠️
+- OG image cho blog posts (SEO)
 
 ---
 
-## KNOWN ISSUES ĐÃ FIX
-- POST /api/posts → PERMISSION_DENIED (fixed: Admin Firestore)
-- analytics publishedPosts dùng p.published cũ (fixed 18/03)
-- art POST thiếu status field (fixed 18/03)
-- revalidate chỉ hỗ trợ session cookie (fixed 18/03: thêm Bearer token)
+## KNOWN ISSUES ĐÃ FIX (18/03/2026)
+- analytics publishedPosts dùng p.published cũ → p.status
+- art POST thiếu status field
+- revalidate chỉ hỗ trợ session cookie → thêm Bearer token
+- art detail page 404 → dùng Admin Firestore
+- internal links thiếu /blog prefix → auto-correct trong MarkdownRenderer
 
 ---
 
 ## MCP TOOLS (gianghaison-blog)
-Dùng trong Claude Desktop:
 - `upload_image` — upload file local lên R2
 - `create_post` / `update_post` / `publish_post` / `delete_post`
 - `list_posts` / `get_post`
 - `create_artwork` / `update_artwork` / `delete_artwork` / `list_artworks`
 
-Revalidate cache sau publish (sau khi có token):
+Revalidate cache (sau khi có token):
 ```
 POST https://gianghaison.me/api/revalidate
 Authorization: Bearer <REVALIDATE_SECRET_TOKEN>
@@ -54,14 +54,14 @@ Authorization: Bearer <REVALIDATE_SECRET_TOKEN>
 
 ## QUY TẮC LÀM VIỆC
 
-### Workflow chuẩn với CLI
-1. Kai tạo file `tasks/Task_XXX_TenTask_CLI.md`
-2. File chứa prompt chia thành **nhiều đoạn ngắn** (mỗi đoạn < 50 dòng)
-3. Sơn paste từng đoạn vào Claude Code CLI trong Cursor
-4. CLI thực thi → báo kết quả
-5. Kai update QUICK.md
+### CLI Workflow (BẮT BUỘC)
+1. Kai tạo file `tasks/Task_XXX_CLI.md`
+2. Kai đưa Sơn đúng 1 câu để paste vào CLI:
+   `Đọc file tasks/Task_XXX_CLI.md và thực thi theo đúng hướng dẫn trong đó.`
+3. CLI tự đọc file → tự thực thi → báo kết quả
+4. Sơn không cần mở file, không cần copy nội dung
 
-### Deploy rule (BẮT BUỘC)
+### Deploy rule
 ```bash
 npm run build  # pass → push, fail → fix → build lại
 ```
@@ -70,6 +70,6 @@ npm run build  # pass → push, fail → fix → build lại
 
 ## ENV VARS (Vercel)
 - NEXT_PUBLIC_FIREBASE_* — Firebase client config
-- FIREBASE_ADMIN_PROJECT_ID / CLIENT_EMAIL / PRIVATE_KEY — Admin SDK
+- FIREBASE_ADMIN_PROJECT_ID / CLIENT_EMAIL / PRIVATE_KEY
 - R2_ACCOUNT_ID / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_BUCKET_NAME / R2_PUBLIC_URL
 - REVALIDATE_SECRET_TOKEN ⚠️ Chưa thêm vào Vercel

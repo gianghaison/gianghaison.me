@@ -1,3 +1,15 @@
+# Task: Fix Art Detail Page 500 Error — gianghaison.me
+# Date: 18/03/2026
+
+## Mô tả
+generateMetadata() vẫn dùng getArtworkBySlug() từ client SDK → Firestore rules chặn → 500.
+Cần chuyển toàn bộ file sang Admin Firestore, kể cả generateMetadata.
+
+## Thực thi
+
+Thay toàn bộ nội dung file `app/(site)/art/[slug]/page.tsx` bằng:
+
+```tsx
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { getAdminFirestore } from "@/lib/firebase-admin"
@@ -97,3 +109,7 @@ export default async function ArtDetailPage({ params }: ArtDetailPageProps) {
     />
   )
 }
+```
+
+## Hoàn thành
+npm run build → pass → git add -A && git commit -m "fix: art detail 500 - move generateMetadata to Admin Firestore" && git push
