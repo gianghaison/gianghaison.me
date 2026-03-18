@@ -44,7 +44,9 @@
       "Bash(bash -c \"npm install --legacy-peer-deps\")",
       "Bash(npm.cmd install:*)",
       "Bash(npm.cmd run build:*)",
-      "Bash(npm.cmd run dev:*)"
+      "Bash(npm.cmd run dev:*)",
+      "Bash(node scripts/fix-internal-links.mjs:*)",
+      "Bash(npm ls:*)"
     ]
   }
 }

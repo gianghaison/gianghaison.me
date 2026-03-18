@@ -1,3 +1,17 @@
+# Task: Update Projects Section — gianghaison.me
+# Date: 18/03/2026
+
+## Mô tả
+- Thêm XuLangEdu (app.xulangeducation.com)
+- Thêm LaKinh (lakinh.vn)
+- Bỏ VocabVault
+- Thêm clickable link cho tất cả projects
+
+## Thực thi
+
+Thay toàn bộ nội dung file `components/projects-section.tsx` bằng:
+
+```tsx
 import Link from "next/link"
 
 const projects = [
@@ -100,3 +114,7 @@ export function ProjectsSection() {
     </section>
   )
 }
+```
+
+## Hoàn thành
+npm run build → pass → git add -A && git commit -m "feat: update projects - add XuLangEdu, LaKinh, remove VocabVault, add links" && git push
